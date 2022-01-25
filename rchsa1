@@ -1,0 +1,201 @@
+#REDHAT DRILLS#
+
+findmnt: Shows you mounted filesystems on your system
+
+su - : loads target user's environment.
+systemctl enable --now 
+
+man: using man properly
+man -k : search mandatabase
+mandb: updates the man database cache
+
+#VIM
+
+dd: cut
+d$: cut to the end of line
+yy: yank (copy)
+p: Paste
+v: visual mode
+u: undo
+ctrl+r: redo
+gg: top line
+G: bottom line
+/text: forward search
+?text: reverse search
+:%s/old/new/g: Substitute
+
+#Glob basics
+
+*
+? one optional character ?osts
+ls [hm]osts = either hosts or mosts
+ls [!hm]osts = anything but hosts or mosts
+[auo] Refers to one character that may be selected from the range that is specified
+between square brackets. ls c[auo]t would match cat, cut, and cot.
+Copy all files that have a name starting with a, b, c, d, or e from /etc to this
+directory: cp /etc/[a-e]*
+cp  /etc/[0-9]*
+
+#Find
+find . -regextype sed -regex ".*/[a-f0-9\-]\{36\}\.jpg"
+Note that you need to specify .*/ in the beginning because find matches the whole path.
+
+find . -user root (find all files by said user)
+find / -user linda : the following command shows all files that have user linda as their owner
+
+ls -il (i for inode number)
+
+##Links
+One important restriction applies, however: to be able to create hard links, you must be the owner of the item that you want to link to.
+This is a relatively new security restriction that was introduced in RHEL 7.
+
+
+#Tar
+Option Use
+c Creates an archive.
+v Shows verbose output while tar is working.
+t Shows the contents of an archive.
+z Compresses/decompresses the archive while creating it, by using gzip.
+j Compresses/decompresses the archive by using bzip2.
+x Extracts an archive.
+u Updates an archive; only newer files will be written to the archive.
+C Changes the working directory before performing the command.
+r Appends files to an archive.
+
+
+##REGEX, AWK, SED
+awk -F : '{ print $4 }' /etc/passwd
+"/web(/.*)?"
+\< - beginning of word
+\> - end of word
+
+
+#TTY
+- There are total 6 virtual terminals available by operating system
+- change virtual terminal command : chvt N - to change virtual terminals
+- Those virtual terminals are available from console not pseudo terminals over ssh.
+
+#Su/Sudo
+Su: Switch user
+su <username> subshell
+su - <username> login shell
+
+##User management
+GECOS field: extra information on user "student" etc
+
+/etc/login.defs : login default configuration file system wide
+-> doesn't affect currently existing users, users to be created only.
+
+Skeleton directory:
+/etc/skel : Files that will be copied to all new users home directory (.bashrc, .bash_profile) for example.
+
+/etc/passwd : Store main user properties
+/etc/shadow: Store password properties
+	> Last four fields: epoc: min password duration: max password duration in days: how many days before password expiration will a user be alerted
+	>> password hash field: !! means password is disabled (Locked)
+
+/etc/group: Store group properties
+
+-> Primary group membership is managed through /etc/passwd 
+-> secondary group memberships is managed through /etc/groups
+
+id : group membership for a user
+lid: list members of a particular group
+
+newgrp: change the primary group of a user temporarily while in session to one of the secondary groups, till the session ends.
+
+
+useradd :
+-D set default settings for user creation :: /etc/default/useradd
+-c comment "GECOS field"
+-p pass encrypted password
+-s set the shell for user, /bin/false for example no login
+
+usermod: 
+-a append
+-G group 
+
+userdel:
+-f force deletion
+-r remove user home 
+
+passwd:
+
+-lock, expire user accounts, password expiry
+-S password status
+
+
+##Ownership
+
+exit-on-match algorithm: are you owner of file? Yes? apply and exit.
+
+chown: 
+chgrp: Change group ownership
+
+/etc/profile --> umask for any user with a loginshell
+
+#Special permissions:
+SUID = 4
+SGID = 2
+Sticky = 1
+
+SUID: RUN FILE AS OWNER (PING OWNED BY ROOT),  A file with SUID always executes as the user who owns the file, regardless of the user passing the command.
+
+SGID:	If set on a file, it allows the file to be executed as the group that owns the file (similar to SUID),
+		If set on a directory, any files created in the directory will have their group ownership set to that of the directory owner
+		
+STICKYBIT: This permission does not affect individual files. However, at the directory level, it restricts file deletion. Only the owner (and root) of a file can remove the file within that directory.
+
+-> to delete a file all you need is write permissions on a directory.
+-> with sticky bit owner of the file or owner of the directory can delete files.
+-> umask can be used for user specific file permissions by default no permissions on others. set umask to 007
+
+chmod -R o+rX /data. The uppercase X
+ensures that files will not get the execute permission unless the file has already set the
+execute permission for some of the entities.
+
+##Access control lists:
+-> Used to grant permissions to more users and groups
+-> ACLs apply to existing files only. If you apply an ACL to a directory recursively it will apply to everything but if you create new directories it wont.
+-> Use a default ACL on a directory if you want it to apply to a new file as well.
+
+getfacl : get access control list setting for a file/directory
+setfacl : set the acl rules
+
+->The 'action' would be -m (modify) or -x (remove), and the specification would be the user or group followed by the permissions we want to set. In this case, we would use the option -d (defaults). So, to set the default ACL for this directory, we would execute:
+
+setfacl -m d:userName:rx /directory/path
+setfacl -m d:g:groupName:rwx /directory/path
+chattr: Change attributes for file in linux (extended attributes)
+->a mount option, user_xattr in /etc/fstab is required
+
+
+--> “operation not supported” message, your file system
+probably lacks support for ACLs. To fix this, you need to add the acl mount option
+in the /etc/fstab file so that the file system will be mounted with ACL support by
+default. Read Chapter 14, “Managing Storage,” for more information about the
+/etc/fstab file and options that you can use in that file.
+
+--> This is important to know. If you want to use ACLs to configure access for
+multiple users or groups to the same directory, you have to set ACLs twice. First, use
+setfacl -R -m to modify the ACLs for current files. Then, use setfacl -m d: to take
+care of all new items that will be created also.
+
+
+chattr: Man this command
+
+
+#Networking:
+
+systemctl status NetworkManager
+
+ip addr
+	-> ip addr add dev eth0 10.10.10.10/24
+ip link
+ip route
+
+DNS:
+/etc/resolv.conf
+
+
+

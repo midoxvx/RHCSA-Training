@@ -1,0 +1,171 @@
+##Advanced Storage solutions:
+
+#LVM Architecture
+
+The storage devices need to be flagged as physical volumes, which makes them
+usable in an LVM environment and makes them usable by other utilities trying to
+gain access to the logical volume. A storage device that is a physical volume can be
+added to the volume group, which is the abstraction of all available storage. The
+“abstraction” means that the volume group is not something that is fixed, but it can
+be resized when needed, which makes it possible to add more space on the volume
+group level when volumes are running out of disk space. The idea is simple: If you
+are running out of disk space on a logical volume, you take available disk space from
+the volume group. And if there is no available disk space in the volume group, you
+just add it by adding a physical volume.
+On top of the volume group are the logical volumes. Logical volumes do not act on
+disks directly but get their disk space from available disk space in the volume group.
+That means that a logical volume may consist of available storage from multiple
+physical volumes, which adds an important layer of additional flexibility to the storage
+configuration.
+
+-> Note that in order to resize file systems
+when logical volumes are resized, the file systems must offer support for that.
+
+xfs: scalable
+ext4: elastic
+
+-> LVM support:
+
+-> Flexibility
+-> Snapshots
+-> Replace failing hardware easily. If a hard disk is failing, data can be moved within the volume
+group (through the pvmove command), the failing disk can then be removed from
+the volume group, and a new hard disk can be added dynamically, without requiring
+any downtime for the logical volume itself.
+#->pvmove
+
+
+NOTE: When working with LVM, there is the physical extent size to consider. This is
+the size of the basic building blocks used in the LVM configuration. When working
+with an ext4 file system, logical extents are used. The extent sizes on LVM are in no
+way related to the extent sizes that are used on the file systems.
+
+##Creating LVM Logical Volumes:
+
+-Creating LVM logical volumes involves creating the three layers in the LVM
+architecture.
+1- Physical volumes
+2- Volume group
+3- Logical Volume
+
+## 1- Creating Physical Volumes:
+
+-> Create a partition marked as LVM type (fdisk: 8e,  gdisk: 8e00, parted: set n lvm on)
+-> pvcreate on the created partition (this writes some metadata to the partition that allows it to be used in a volume group)
+	-> pvcreate /dev/sdb1
+-> pvs : To verify the creation of the physical volume
+-> pvdisplay: More details on created physical volume
+
+## 2- Creating Volume Groups:
+
+-> vgcreate: Use to create a volume group and assign a physicl volume to it. This is a procedure to create a new VG but we can assign PV to already existing VG.
+	-> vgcreate mynewvolumegroup /dev/sdb1 (If you havent marked the devices as a physical volume yet this command will automatically create it so the first step can be skipped)
+	
+-> vgs: To verify creation of volume groups
+-> vgdisplay: More verbose.
+
+	
+
+
+## 3- Creating Logical Volumes and file system:
+
+-> lvcreate: to create logical volumes
+	-> -l: relative logical volume size : lvcreate -l +50%FREE vgdata
+	-> -L: Absolute logical volume size : lvcreate -L +5G	vgdata
+	-> -n: Name the logical volume (Recommended)
+
+-> mkfs.xfs: create the file system on top of the lvm
+	
+## LVM device naming:
+
+The device mapper (abbreviated as dm) is a generic interface that the Linux kernel uses to
+address storage devices.
+
+-> there are two ways to name lvm devices:
+-> /dev/vgdata/lvm1
+-> /dev/mapper/vgdata-lvdata
+-> Both are symbolic links created by devmapper
+
+
+## Resizing LVM logical volumes:
+	
+# Extending Volume groups:
+vgextend: command is used to add storage to a volume group,
+vgreduce: command is used to take physical volumes out of a volume group
+
+■ lvresize -r -l 75%VG /dev/vgdata/lvdata This resizes the logical volume so
+that it will take 75% of the total disk space in the volume group.
+■ lvresize -r -l +75%VG /dev/vgdata/lvdata This tries to add 75% of the
+total size of the volume group to the logical volume. (Notice the difference
+with the previous command.)
+■ lvresize -r -l +75%FREE /dev/vgdata/lvdata This adds 75% of all free
+disk space to the logical volume.
+■ lvresize -r -l 75%FREE /dev/vgdata/lvdata This resizes the logical volume
+to a total size that equals 75% of the amount of free disk space. (Notice the
+difference with the previous command.)
+
+
+
+## Summary of commands:
+pvcreate Creates physical volumes
+pvs Shows a summary of available physical volumes
+pvdisplay Shows a list of physical volumes and their properties
+pvremove Removes the physical volume signature from a block device
+vgcreate Creates volume groups
+vgs Shows a summary of available volume groups
+vgdisplay Shows a detailed list of volume groups and their properties
+vgremove Removes a volume group
+lvcreate Creates logical volumes
+lvs Shows a summary of all available logical volumes
+lvdisplay Shows a detailed list of available logical volumes and their properties
+lvremove Removes a logical volume
+
+
+
+## STRATIS:
+
+-> blkid -p (probe)
+-> wipefs -a (wipe signatures)
+
+-> Lowest layer in stratis architecture is the pool
+	-> A pool represents all the available storage and consists of one or more storage devices (Blockdev)
+-> First you create a pool
+-> Second a filesystem
+
+-> stratis pool create mypool /dev/sdb1
+-> stratis fs create mypool myfilesystem
+	-> stratis fs list (Verify)
+->you can mount it after that, for persistent mount you must use uuid in fstab.
+-> x-systemd.requires=stratisd.service
+
+-> To extend a pool:
+
+-> stratis pool add-data mypool /dev/sdc
+
+■ stratis blockdev: Shows information about all block devices that are used for
+Stratis.
+■ stratis pool: Gives information about Stratis pools. Note in particular the
+Physical Used parameter, which should not come too close to the Physical Size
+parameter.
+■ stratis filesystem: Enables you to monitor individual file systems.
+
+## Snapshots
+
+-> stratis fs snapshot mypoolname myfilesystemname snapshot-name
+
+# Can be mounted and used as a separate filesystem
+
+# Destroy FS
+
+-> stratis fs destroy poolname filesystemname filesystemname2
+
+# Snapshots wouldnt work on LVM blockdevs
+
+#VDO
+
+vdo create --name myvdo --device /dev/sdb --vdoLogicalSize=1T 
+mkfs.xfs -K /dev/mapper/vdo1.
+
+systemd mount. requires vdo.service
+
+

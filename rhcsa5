@@ -1,0 +1,225 @@
+##RHCSA DRILLS 2
+
+
+#Network:
+
+man 5 nm-settings
+man nmcli
+
+##Process management:
+
+ps -fax : Shows relationship between parent/child processes
+ps -fU lina : shows all processes owned by linda
+ps -f --forest -C sshd : show process tree for a specific process (SSHD)
+ps L : Show format specifiers
+ps -eo pid,ppid,user,cmd 
+
+
+nohup:
+-Normally child processes running in the background would die if the parent shell is killed
+In earlier versions of the Bash shell, background processes were also killed
+when the shell they were started from was terminated. To prevent that, the process
+could be started with the nohup command in front of it.
+
+Using nohup for this
+purpose is no longer needed in RHEL 8. If a parent process is killed while the child
+process still is active, the child process becomes a child of systemd instead.
+
+#Memory
+[root@RHCSA ~]# free -gh
+              total        used        free      shared  buff/cache   available
+Mem:          808Mi       179Mi       303Mi       5.0Mi       325Mi       501Mi
+Swap:         2.0Gi          0B       2.0Gi
+
+- The kernel moves inactive memory to swap
+- swap is used as an overflow buffer of emulated RAM on disk
+- Shared memory is library files, memory shared between programs
+
+
+#CPU load
+[root@RHCSA ~]# uptime
+ 16:23:12 up  1:37,  2 users,  load average: 0.00, 0.00, 0.00
+
+Average for last: last minute, last 5 mins, last 15 mins
+
+watch : makes sure that a command repeats every two seconds
+watch uptime
+
+
+lscpu
+
+tuned: Optimize system performance
+tuned-adm: choose optimization profiles
+
+nice: use to start a process with specific priority.
+renice: to adjust a priority of an already running process.
+
+nice -n 5 script.sh
+renice -n 10 -p 1234
+
+Note that regular users can only decrease the priority of a running process.
+You must be root to give processes increased priority.
+
+
+The signal SIGTERM (15) is used to ask a process to stop.
+■ The signal SIGKILL (9) is used to force a process to stop.
+■ The SIGHUP (1) signal is used to hang up a process. The effect is that the
+process will reread its configuration files, which makes this a useful signal to
+use after making modifications to a process configuration file.
+
+
+## Package installation
+
+#Repositories: /etc/yum.repos.d
+[label] The .repo file can contain different repositories, each section starting
+with a label that identifies the specific repository.
+
+name= Use this to specify the name of the repository you want to use.
+
+baseurl= Contains the URL that points to the specific repository location.
+
+gpgcheck= Set to 1 if a GNU Privacy Guard (GPG) integrity check needs to be
+performed on the packages. If set to 1, a GPG key is required.
+
+gpgkey= Specifies the
+
+/etc/pki/rpm-gpg : where gpg keys are installed
+
+yum/dnf
+yum search packageName
+yum provides */fileOrconfig name
+yum distro-sync : to ensure that all dependent packages that are not in the module itself are updated as
+well
+
+Modules: represents an application or component , a set of RPM packages that belong together (php with all libraries and dependencies)
+streams: A stream contains one specific version,  php 7.1, php 7.2, php 7.3 
+Profiles: A profile is a list of packages that are
+installed together for a particular use case. Common, devel, minimal
+
+yum module list
+yum module list --profile php:7.1
+yum module install php:7.1
+yum module install php:7.1/devel
+
+
+#Groups
+
+yum groups list
+yum groups list hidden
+yum groups info "Package name"
+yum group install --with-optional "Package name"
+
+
+#History
+
+yum history
+yum history undo
+
+#RPM
+
+rpm -qf Uses a filename as its argument to find the specific RPM package a
+file belongs to.
+
+rpm -ql Uses the RPM database to provide a list of files in the RPM
+package.
+
+rpm -qi Uses the RPM database to provide package information (equivalent
+to yum info).
+
+rpm -qd Uses the RPM database to show all documentation that is available
+in the package.
+
+rpm -qc Uses the RPM database to show all configuration files that are
+available in the package.
+
+rpm -q --scripts Uses the RPM database to show scripts that are used in the package.
+This is particularly useful if combined with the -p option.
+
+rpm -qp <pkg> The -p option is used with all the previously listed options to query
+individual RPM package files instead of the RPM package database.
+Using this option before installation helps you find out what is
+actually in the package before it is installed.
+
+rpm -qR Shows dependencies for a specific package.
+
+rpm -V Shows which parts of a specific package have been changed since
+installation.
+
+rpm -Va Verifies all installed packages and shows which parts of the package
+have been changed since installation. This is an easy and convenient
+way to do a package integrity check.
+
+rpm -qa Lists all packages that are installed on this server.
+
+yum install dnf-utils : to get yum downloader & repoquery
+
+
+
+##SystemD
+
+systemctl list-unit-files : all unit files
+systemctl list-units : all running units
+
+runtime systemd units: /run/systemd/units
+/etc/systemd/system : custom units, act as an overlap 
+/usr/lib/systemd/system
+
+systemctl edit unit.service : to edit unit files
+
+systemctl list-units : list loaded unit files in the current target
+systemctl list-unit-files : list all installed unit files
+
+systemctl --type=service Shows only service units
+
+systemctl list-units --type=service Shows all active service units (same result as the
+previous command)
+
+systemctl list-units --type=service --all Shows inactive service units as well as active
+service units
+
+systemctl --failed --type=service Shows all services that have failed
+
+systemctl status -l your.service Shows detailed status information about services
+
+systemctl list-dependencies sshd.service --reverse : Which targets/unit require sshd
+
+systemctl show sshd : to get configuration options for sshd service
+
+
+man 5 systemd.unit
+man 5 systemd.service
+
+## Scheduled tasks
+
+man 5 crontab
+/etc/crontab
+
+
+crontab -e -u {Username} : to schedule a cron job to be run under a specific user
+When you create a cronfile and save it, it is moved to its final location : /var/spool/cron
+
+crontab -l : list cron jobs, but only for the current user account.
+anacrontab: is to ensure the jobs that are running on fixed (/etc/cron.hourly, cron.weelly, cron.monthly etc) basis
+/etc/anacron config file 
+
+/etc/cron.allow : who is allowed to schedule cron jobs
+/etc/cron.deny : blackkey
+
+-> Both file should not exist on the same system
+-> If neither file exist, only root can schedule jobs
+
+
+atd: A service for jobs that need to be executed only once.
+
+at 14:00
+> echo "hello" >tmp.txt
+
+atq : to get the queue of the jobs
+
+atrm : remove a scheduled job 
+
+
+##Logging:
+
+*snap-in directory
+

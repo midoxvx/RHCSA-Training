@@ -1,0 +1,300 @@
+##Kernel Management:
+Tainted kernel: is a kernel that contains closed source
+drivers.
+
+# Analyzing what the kernel is doing:
+
+-> dmesg
+-> /proc
+-> uname
+
+
+->DMESG: This utility shows the contents of the kernel ring buffer, an area of memory
+where the Linux kernel keeps its recent log messages.
+
+-> dmesg
+-> journalctl --dmesg
+-> journalctl -k
+
+
+-> udevadm monitor: This lists all events that are processed while activating new hardware devices.
+-> udevadm settle: Settle device naming on all levels
+
+## Kernel Modules:
+
+lsmod: Lists currently loaded kernel modules
+modinfo: Displays information about kernel modules
+modprobe: Loads kernel modules, including all of their dependencies
+modprobe -r:  Unloads kernel modules, considering kernel module dependencies
+lspci: shows all hardware devices that have been detected on the PCI bus
+-> lspci -k : show all kernel modules used for detected hardware devices
+
+/etc/modules-load.d : Load modules at boot.
+/etc/modprobe.d : modprobe config file (load modules with specific parameters everytime they are loadded)
+
+## Boot procedure
+
+#Working with grub:
+
+-> /etc/default/grub (Grub template to be used if any parameters need to be passed to kernel)
+
+-> If your system is a BIOS system, the name of the file is /boot/grub2/
+grub.cfg. 
+-> On a UEFI system the file is written to /boot/efi/EFI/redhat/grub.cfg
+
+-> man 7 bootparam : kernel boot arguments
+
+-> grub2-mkconfig -o /boot/grub2/grub.cfg
+->  grub2-mkconfig -o /boot/efi/EFI/redhat/grub.cfg.
+
+
+## Passing Kernel Arguments & Troubleshoot chapter from book, must.
+
+
+
+### SSH
+Port Defines the TCP listening port.
+PermitRootLogin Indicates whether to allow or disallow root login.
+MaxAuthTries Specifies the maximum number of authentication tries.
+After reaching half of this number, failures are logged
+to syslog.
+MaxSessions Indicates the maximum number of sessions that can be
+open from one IP address.
+AllowUsers Specifies a space-separated list of users who are allowed
+to connect to the server.
+PasswordAuthentication Specifies whether to allow password authentication.
+This option is on by default.
+GSSAPIAuthentication Indicates whether authentication through the GSSAPI
+needs to be enabled. Used for Kerberos-based
+authentication.
+TCPKeepAlive Specifies whether or not to clean up inactive TCP
+connections.
+ClientAliveInterval Specifies the interval, in seconds, that packets are sent
+to the client to figure out if the client is still alive.
+ClientAliveCountMax Specifies the number of client alive packets that need
+to be sent.
+UseDNS If on, uses DNS name lookup to match incoming IP
+addresses to names.
+ServerAliveInterval Specifies the interval, in seconds, that a client sends a
+packet to a server to keep connections alive.
+ServerAliveCountMax Specifies the maximum number of packets a client
+sends to a server to keep connections alive
+
+
+
+## SELINUX
+
+/etc/sysconfig/selinux : modes
+
+getenforce
+setenforce
+sestatus
+
+Context labels: define the nature of the object, and SELinux rules are created to
+match context labels of source objects to the context labels of target objects.
+
+■ User: The user can be recognized by _u in the context label; it is set to
+system_u on most directories in Example 22-3. SELinux users are not the
+same as Linux users, and they are not important on the RHCSA exam.
+■ Role: The role can be recognized by _r in the context label. In Example 22-3,
+most objects are labeled with the object_r role. In advanced SELinux
+management, specific SELinux users can be assigned permissions to specific
+SELinux roles. For the RHCSA exam, you do not have to know how to
+configure roles.
+■ Type: The type context can be recognized by _t in the context label. In
+Example 22-3, you can see that a wide variety of context types are applied to
+the directories in the / file system. Make sure that you know how to work with
+context types, because they are what the RHCSA exam expects you to know.
+
+■ semanage: This is the command you want to use. The semanage command
+writes the new context to the SELinux policy, from which it is applied to the
+file system.
+■ chcon: This command is for use in specific cases only and normally should be
+avoided. The chcon command writes the new context to the file system and
+not to the policy. Everything that is applied with chcon is overwritten when
+the file system is relabeled, or the original context is restored from the policy
+to the file system.
+
+semanage
+
+semanage fcontext -a -t httpd_sys_content_t "/mydir(/.*)?"
+
+-> Get the file context from an already existing file on the system.
+
+-> Change context on file system:
+restorecon -R -v /mydir
+
+#Restore file contexts:
+
+restorecon -Rv : recursive, verbose
+
+or
+
+touch /.autorelabel : to relabel the entire filesystem
+
+■ If a new file is created, it inherits the context settings from the parent
+directory.
+■ If a file is copied to a directory, this is considered a new file, so it inherits the
+context settings from the parent directory.
+■ If a file is moved, or copied while keeping its properties (by using cp -a), the
+original context settings of the file are applied.
+
+
+##SE booleans:
+
+getsebool -a : Get a list of booleans
+semanage boolean -l : Get a list of booleans with more details (recommend)
+
+setsebool <boolean> on/off -P : change value of boolean permanently.
+
+
+
+
+##FIREWALL
+->Firewalling is implemented in the Linux kernel by means of the netfilter subsystem.
+Netfilter allows kernel modules to inspect every incoming, outgoing, or forwarded
+packet and act upon such a packet by either allowing it or blocking it.
+
+
+Zones: to define different firewall rules on different interfaces on the server.
+
+-> Services: /usr/lib/firewalld/services
+
+firewall-cmd --list-services: list allowed services in the current active zone
+firewall-cmd --list-all: complete overview of current firewall config
+firewall-cmd --add-service=<service_name> : add service to the default zone in run-time
+
+--get-zones Lists all available zones
+--get-default-zone Shows the zone currently set as the default zone
+--set-default-zone=<ZONE> Changes the default zone
+--get-services Shows all available services
+--list-services Shows services currently in use
+--add-service=<service-name>
+[--zone=<ZONE>]
+Adds a service to the current default zone or the
+zone that is specified
+--remove-service=<service-name> Removes a service from the configuration
+--list-all [--zone=<ZONE>] Lists all configurations in a zone
+--add-port=<port/protocol>
+[--zone=<ZONE>]
+Adds a port and protocol
+--remove-port=<port/protocol>
+[--zone=<ZONE>]
+Removes a port from the configuration
+--add-interface=<INTERFACE>
+[--zone=<ZONE>]
+Adds an interface to the default zone or a specific
+zone that is specified
+--remove-interface=<INTERFACE>
+[--zone=<ZONE>]
+Removes an interface from a specific zone
+--add-source=<ipaddress/netmask>
+[--zone=<ZONE>]
+Adds a specific IP address
+--remove-source=<ipaddress/netmask>
+[--zone=<ZONE>]
+Removes an IP address from the configuration
+--permanent Writes configuration to disk and not to runtime
+--reload Reloads the on-disk configuration
+
+
+
+
+###NFS (NETWORK FILESHARE)
+
+###NFS###
+
+
+rpcinfo -p $IP remote server : get RPC info on remote host
+
+exportfs -s : Show exports 
+
+showmount -e
+
+nfs-utils
+
+(server side, out of scope)
+/etc/exports
+
+	-> /shared-directory *(rw,options)
+	
+
+client side:
+
+showmount -e <servername>
+
+[root@RHCSA services]# showmount -e localhost
+Export list for localhost:
+/nfs-share *
+
+
+-> we need the following services added to firewall
+
+nfs
+mountd
+rpc-bind
+
+fstab: server1:/share /nfs-share nfs sync 0 0
+
+
+##CIFS / SAMBA SHARES
+cifs-utils
+samba-client
+
+
+smbclient -L <server ip> : list all samba shares
+//server2/sambashare /sambamount cifs username=linda, password=password 0 0
+
+##AUTO-MOUNT AUTOFS##
+
+In automount, mounts are defined through a two-step procedure. First, you need
+to edit the master configuration file /etc/auto.master. In this directory you identify
+the mount point (for instance, /nfsdata). Next, and on the same line, you identify the
+name of the secondary file, as all further configuration happens in this secondary
+file. The line you create could look as follows:
+/nfsdata /etc/auto.nfsdata
+
+
+In the secondary file you put the name of the subdirectory that will be created in
+the mount point directory as a relative filename. For instance, you start the line with
+files, to mount /nfsdata/files. After the name of the subdirectory, you specify NFS
+mount options, as well as the server and share name to access the NFS share. This
+line could look as follows:
+files -rw. server2:/nfsdata
+
+
+-> /etc/auto.misc : good for examples
+
+## Wildcard mounts:
+
+To create a wildcard mount, you will use lines like * -rw server2:/users/&. In this
+line, the * represents the local mount point, which in this case represents anything,
+and the & represents the matching item on the remote server.
+
+
+#Containers:
+#Decoupling: Separate your static code from site specific information.
+
+Podman search
+podman pull
+podman run <container_name> 
+podman run -d <container_name> : detached mode
+podman run -it : run it in an interactive terminal (if the container provides a shell for exmpel)
+podman exec -it <container name> bash : Allows you to run a command in a container that is already running
+podman run -it -e enviro=mohie ubi8/ubi : Pass environment variable
+podman log <container_name>
+podman generate systemd --name myubi > ~/.config/systemd/user/container-myubi.service
+podman images
+podman ps -a
+
+podman run --name $imagename -dit -v /local/storage:/container/storage:z -p localport:containerport 
+
+-z selinux context
+
+
+
+podman image save ubi8/ubi -o myubi.tar
+podman load -i myubi.tar
+
+skopeo inspect docker://<image name>
+

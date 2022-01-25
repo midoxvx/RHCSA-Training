@@ -1,0 +1,217 @@
+#Temporary files:
+
+man tmpfiles.d
+
+/usr/lib/tmpfiles.d
+
+/etc/tmpfiles.d : overrides all other directories for tmp files.
+
+->if you want to disable a tmp file, say for a vendor, create a symlink in /etc/tmpfiles.d to dev/null with the same name of the config file.
+
+#Managing tmp-files with systemd
+
+/usr/lib/tmpfiles.d/tmpfiles.conf
+
+systemd-tmpfiles --clean 
+
+d /tmp 1777 root root 10d
+
+
+##Logging:
+
+tree /var/log
+
+#rsyslogd:
+/etc/rsyslog.conf
+
+Facilities(Services).Priorities
+
+from where - What level
+
+cron.=debug -/var/log/cron.debug
+
+= (only debug priority) by default it logs the specified priority and everything higher.
+- means the writes will be stored in a buffer first before writing in bulk to the specified file
+
+
+
+■ A facility specifies a category of information that is logged. rsyslogd uses a fixed
+list of facilities, which cannot be extended. This is because of backward compatibility
+with the legacy syslog service.
+■ A priority is used to define the severity of the message that needs to be logged.
+When specifying a priority, by default all messages with that priority and all
+higher priorities are logged.
+■ A destination defines where the message should be written. Typical destinations
+are files, but rsyslog modules can be used as a destination as well, to allow
+further processing through a rsyslogd module.
+
+logger: The logger command enables users to write messages to rsyslog from the
+command line or a script
+
+systemd-journald: systemd's logging daemon but it runs in memory
+-> /dev/log where it writes logs 
+-> Rsyslogd reads from /dev/log and outputs in /var/log
+
+to make journald persistent:
+create a directory /var/log/journal
+
+#Log rotation:
+
+/etc/logrotate.conf
+
+##STorage
+
+partprobe : to update the kernel with new parition tables
+lsof : list of open files
+ -> lsof /dev (what files, devices are using dev) in case device is busy
+
+blkid: Get the UID of block devices
+
+
+##MBR partioning scheme:
+-MBR first sector of a formatted hard disk
+-2TB partition limitation
+-partition table size: 64 bytes
+-BIOS
+
+
+
+#GUID Partition table (GPT)
+- 128 max partitions
+- Stores a 128 unique ID for each partition
+- no limitation on partition size
+- UEFI & BIOS
+
+
+#Managing paritions:
+
+fdisk: MBR 
+gdisk: GPT
+parted: Both
+
+dd if=/dev/sda of=/root/diskfile bs=1M count=1
+-> create a backup of the first megabyte of raw blocks and write that
+to the file /root/diskfile
+
+fdisk /dev/sda (rbc expansion)
+
+partprobe /dev/sda to write the changes to the kernel partition table (after creating new partitions, no need to reboot)
+
+
+#Gdisk
+gdisk /dev/sdb: Note do not create gpt partitions on an MBR disk or convert it, your system wont boot.
+
+parted:
+mklabel
+mkpart
+
+# Creating filesystem
+
+mkfs.xfs
+mkfs -t xfs /dev/sdb1
+
+#Managing filesystems:
+
+udevadmn settle
+
+#Ext filesystem modificiation
+tune2fs -o acl,user_xattr
+tune2fs -o ^acl,user_xattr
+tune2fs -L: Label a filesystem
+e2label: label a filesystem
+
+
+#XFS filesystem modifiers
+
+xfs_admin -L : label
+xfs_admin -U: change uuid for a filesystem
+xfsdump
+xfsrestore
+xfsrepair
+
+#fstab: create systemd-mounts : 
+/dev/mapper/cl-root     /                       xfs     defaults        0 0
+UUID=627f1649-949e-407b-b9f6-91edceb0716d /boot                   xfs     defaults        0 0
+/dev/mapper/cl-swap     none                    swap    defaults        0 0
+
+#/dev/sr0       /repo   iso9660 defaults        0 0
+
+Device The device that must be mounted. A device name, UUID, or label can
+be used.
+Mount Point The directory or kernel interface where the device needs to be
+mounted.
+
+File System The file system type.
+Mount Options Mount options.
+
+Dump Support Use 1 to enable support to back up using the dump utility. This may
+be necessary for some backup solutions.
+
+Automatic Check Specifies whether the file system should be checked automatically
+when booting. Use 0 to disable automated check, 1 if this is the root
+file system and it has to be checked automatically, and 2 for all other
+file systems that need automatic checking while booting. Network file
+systems should have this option set to 0.
+
+
+## Mount options:
+
+Option Use
+auto/ noauto The file system will [not] be mounted automatically.
+acl Adds support for file system access control lists (see Chapter 7,
+“Permissions Management”).
+user_xattr Adds support for user-extended attributes (see Chapter 7).
+ro Mounts the file system in read-only mode.
+atime / noatime Disables or enables access time modifications.
+noexec / exec Denies or allows execution of program files from the file system.
+_netdev Use this to mount a network file system. This tells fstab to wait
+
+#Persistent naming attributes:
+
+UUID:
+LABEL:
+/dev/disk
+
+
+#SystemD mounts:
+
+
+/etc/systemd/system
+systemctl cat tmp.mount (Use it as example)
+
+
+##Creating swap mounts:
+
+fdisk 
+	-t 82
+mkswap /dev/sdb3
+swapon /dev/sdb3
+
+-> create a systemd mount, or fstab
+
+#Swap file:
+dd if=/dev/zero of=/swapfile bs=1M count=100
+mkswap /swapfile
+swapon /swapfile
+
+## Mounting filesystems:
+
+■ What to mount: This information is mandatory and specifies the name of the
+device that needs to be mounted.
+■ Where to mount it: This is also mandatory information that specifies the
+directory on which the device should be mounted.
+■ What file system to mount: Optionally, you can specify the file system type.
+In most cases, this is not necessary. The mount command will detect which
+file system is used on the device and make sure the correct driver is used.
+■ Mount options: Many mount options can be used when mounting a device.
+Using options is optional and depends on the needs you may have for the file
+system.
+
+mount
+umount
+
+#UUID & Lables
+mount UUID="42f419c4-633f-4ed7-b161-519a4dadd3da" /mnt
+mount LABEL=mylabel /mnt
+
+
